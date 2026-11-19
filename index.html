@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BIA Textiles — Barcode Generator</title>
+  <meta name="description" content="BIA Textiles — Convert Excel column data into professional, high-resolution barcodes with customizable label templates and instant print.">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- CDN Libraries with automatic fallback handling in app.js -->
+  <!-- SheetJS (Excel Parser) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- JsBarcode -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <!-- JSZip for batch download -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <!-- Print Header (Visible only when printing) -->
+  <div class="print-only print-document-header" id="printDocumentHeader">
+    <div class="print-header-left">
+      <img src="bia-logo.png" alt="BIA Textiles" class="print-bia-logo">
+      <div>
+        <h2 id="printDocTitle">Barcode Label Sheet</h2>
+        <span id="printDocSub">BIA Textiles — Source: Excel Data</span>
+      </div>
+    </div>
+    <div class="print-header-right">
+      <span id="printDate"></span>
+    </div>
+  </div>
+
+  <!-- App Container (Screen Mode) -->
+  <div class="app-layout">
+    <!-- Top Navigation -->
+    <header class="app-header no-print">
+      <div class="header-content">
+        <div class="logo-area">
+          <img src="bia-logo.png" alt="BIA Textiles Logo" class="bia-logo-img">
+          <div class="bia-brand-divider"></div>
+          <div>
+            <div class="brand-title">Barcode <span class="gradient-text">Generator</span></div>
+            <div class="brand-subtitle">Professional Excel to Barcode Label Studio</div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="btnSampleData" class="btn btn-secondary btn-sm" title="Load sample records to test instantly">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            Try Demo Data
+          </button>
+          
+          <button id="btnDownloadTemplate" class="btn btn-secondary btn-sm" title="Download Excel template ready to fill">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Excel Template
+          </button>
+
+          <button id="btnPrintAll" class="btn btn-primary btn-sm" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print Labels
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-container">
+      
+      <!-- Top Section: Upload Box & Options Dashboard -->
+      <section class="config-panel no-print">
+        
+        <!-- Drag & Drop Zone -->
+        <div class="upload-card">
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="file-input-hidden">
+            <div class="drop-icon-wrap">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <h3 class="drop-title">Upload Excel File</h3>
+            <p class="drop-desc">Drag & drop your <strong>.xlsx</strong>, <strong>.xls</strong>, or <strong>.csv</strong> file here, or <span class="highlight-link">browse</span></p>
+            <div class="drop-hint">
+              <span>💡 Automatically reads <strong>Column 1</strong> (Column Name & Words/Values)</span>
+            </div>
+          </div>
+
+          <!-- File Info Bar (When file is loaded) -->
+          <div class="file-meta-bar" id="fileMetaBar" style="display: none;">
+            <div class="file-meta-left">
+              <span class="file-icon">📊</span>
+              <div>
+                <strong id="metaFileName">inventory.xlsx</strong>
+                <span class="meta-details" id="metaDetails">Sheet 1 • 45 rows</span>
+              </div>
+            </div>
+            <div class="file-meta-controls">
+              <div class="form-group-inline">
+                <label for="sheetSelect">Sheet:</label>
+                <select id="sheetSelect" class="form-select"></select>
+              </div>
+              <div class="form-group-inline">
+                <label for="columnSelect">Target Column:</label>
+                <select id="columnSelect" class="form-select"></select>
+              </div>
+              <button id="btnClearFile" class="btn-icon" title="Remove file">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barcode Styling & Layout Controls -->
+        <div class="settings-card">
+          <div class="settings-header">
+            <h4>Barcode & Label Customization</h4>
+            <span class="badge badge-accent">Live Preview</span>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Format / Symbology -->
+            <div class="setting-item">
+              <label for="barcodeFormat">Barcode Symbology</label>
+              <select id="barcodeFormat" class="form-select">
+                <option value="CODE128" selected>CODE 128 (Recommended for words & alphanumeric)</option>
+                <option value="CODE39">CODE 39 (Alphanumeric uppercase)</option>
+                <option value="EAN13">EAN-13 (13-digit numbers)</option>
+                <option value="UPC">UPC-A (12-digit numbers)</option>
+                <option value="EAN8">EAN-8 (8-digit numbers)</option>
+                <option value="ITF14">ITF-14 (14-digit)</option>
+                <option value="MSI">MSI / Plessey</option>
+                <option value="pharmacode">Pharmacode</option>
+              </select>
+            </div>
+
+            <!-- Print Layout Template -->
+            <div class="setting-item">
+              <label for="printLayout">Print Label Layout</label>
+              <select id="printLayout" class="form-select">
+                <option value="grid-3" selected>3 Columns (Standard Label Grid)</option>
+                <option value="grid-2">2 Columns (Large Shipping Labels)</option>
+                <option value="grid-4">4 Columns (Compact Sticky Labels)</option>
+                <option value="grid-1">1 Column (List / Inspection View)</option>
+              </select>
+            </div>
+
+            <!-- Barcode Height -->
+            <div class="setting-item">
+              <div class="label-with-val">
+                <label for="barcodeHeight">Barcode Height</label>
+                <span id="valBarcodeHeight" class="val-badge">85px</span>
+              </div>
+              <input type="range" id="barcodeHeight" min="50" max="150" value="85" class="form-range">
+            </div>
+
+            <!-- Barcode Line Width -->
+            <div class="setting-item">
+              <div class="label-with-val">
+                <label for="barcodeWidth">Bar Width Scale</label>
+                <span id="valBarcodeWidth" class="val-badge">2.5px</span>
+              </div>
+              <input type="range" id="barcodeWidth" min="1" max="5" step="0.5" value="2.5" class="form-range">
+            </div>
+
+            <!-- Display Toggles -->
+            <div class="setting-item full-width-toggles">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkShowColName" checked>
+                <span>Display Column 1 Name (Header)</span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkShowText" checked>
+                <span>Display Value Text below barcode</span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkShowCounter" checked>
+                <span>Display Item Index (#1, #2...)</span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkTrim" checked>
+                <span>Trim extra whitespace</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Results & Operations Toolbar (Visible when data exists) -->
+      <section class="results-toolbar no-print" id="resultsToolbar" style="display: none;">
+        <div class="stats-group">
+          <div class="stat-badge">
+            <span class="stat-label">Total Records:</span>
+            <span class="stat-number" id="statTotalCount">0</span>
+          </div>
+          <div class="stat-badge" id="statColumnBadge">
+            <span class="stat-label">Column Name:</span>
+            <span class="stat-highlight" id="statColumnName">Column 1</span>
+          </div>
+          <div class="stat-badge stat-success">
+            <span class="stat-label">Valid Barcodes:</span>
+            <span class="stat-number" id="statValidCount">0</span>
+          </div>
+          <div class="stat-badge stat-warning" id="statErrorBadge" style="display: none;">
+            <span class="stat-label">Failed:</span>
+            <span class="stat-number" id="statErrorCount">0</span>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <!-- Search Filter -->
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search words / barcodes..." class="search-input">
+          </div>
+
+          <!-- Batch Actions -->
+          <button id="btnDownloadZip" class="btn btn-secondary btn-sm" title="Download all barcodes as high-resolution PNGs in a ZIP file">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download All (ZIP)
+          </button>
+
+          <button id="btnToolbarPrint" class="btn btn-primary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print Sheet
+          </button>
+        </div>
+      </section>
+
+      <!-- Print Color Tip Banner -->
+      <div class="print-tip-banner no-print" id="printTipBanner">
+        <span class="tip-icon">🖨️</span>
+        <span><strong>For full-color labels:</strong> In the print dialog → More Settings → enable <strong>"Background graphics"</strong> (Chrome/Edge) or <strong>"Print backgrounds"</strong> (Firefox).</span>
+        <button class="tip-close" onclick="this.parentElement.style.display='none'">✕</button>
+      </div>
+
+      <!-- Empty State / Placeholder -->
+      <section class="empty-state no-print" id="emptyState">
+        <div class="empty-illustration">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="7" y1="8" x2="7" y2="16"/>
+            <line x1="10" y1="8" x2="10" y2="16"/>
+            <line x1="13" y1="8" x2="13" y2="16"/>
+            <line x1="16" y1="8" x2="16" y2="16"/>
+          </svg>
+        </div>
+        <h3>No Barcodes Generated Yet</h3>
+        <p>Upload an Excel spreadsheet with your words or codes in Column 1, or click <strong>Try Demo Data</strong> above to see it in action.</p>
+        <div class="empty-features">
+          <div class="feature-item">
+            <span class="feature-icon">✨</span>
+            <div>
+              <strong>Header & Word Included</strong>
+              <p>Column 1 name is proudly printed on top of each barcode label</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🖨️</span>
+            <div>
+              <strong>Laser / Thermal Print Ready</strong>
+              <p>Crisp 300DPI vector SVG output optimized for standard sticker sheets</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <div>
+              <strong>100% Client-Side Privacy</strong>
+              <p>Your spreadsheet data never leaves your browser</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Barcode Cards Grid (Printed and Viewed) -->
+      <section class="barcode-container" id="barcodeContainer">
+        <!-- Rendered dynamically by JavaScript -->
+      </section>
+
+      <!-- No Search Results Found Message -->
+      <div id="noSearchResults" class="no-search-results no-print" style="display: none;">
+        <p>No barcodes match your search keyword.</p>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer no-print">
+      <div class="footer-content">
+        <div class="footer-logo-row">
+          <img src="bia-logo.png" alt="BIA Textiles" class="footer-bia-logo">
+        </div>
+        <p>© BIA Textiles — Professional Barcode Label Generator &nbsp;|&nbsp; Supports CODE128, CODE39, EAN, UPC &nbsp;|&nbsp; All data processed locally in your browser.</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
